@@ -7,7 +7,7 @@ import random
 def json2data():
     
     random.seed(0)
-    root = '/home/mn/8T/code/MVSTHGNN/data/json/'
+    root = '/home/mn/8T/code/new-hgnn/MVSTHGNN/data/json/'
 
     body_id = ['head','head','lefthand','lefthand','lefthand',
                 'righthand','righthand','righthand','leg',

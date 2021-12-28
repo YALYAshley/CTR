@@ -59,24 +59,46 @@ v9 0   0   1
 # sys.stdout = Logger('a.txt')
 # data = json2data()
 
-#请先安装sklearn、numpy库
-from sklearn.metrics import precision_score, recall_score, f1_score
-import numpy as np
+# #请先安装sklearn、numpy库
+# from sklearn.metrics import precision_score, recall_score, f1_score
+# import numpy as np
  
-y_true = np.array([[1, 1, 1],
-                   [1, 1, 0]])
-y_pred = np.array([[1, 0, 1],
-                   [1, 1, 1]])
+# y_true = np.array([[1, 1, 1],
+#                    [1, 1, 0]])
+# y_pred = np.array([[1, 0, 1],
+#                    [1, 1, 1]])
  
-y_true = np.reshape(y_true, [-1])
-y_pred = np.reshape(y_pred, [-1])
+# y_true = np.reshape(y_true, [-1])
+# y_pred = np.reshape(y_pred, [-1])
  
-p = precision_score(y_true, y_pred, average='binary')
-r = recall_score(y_true, y_pred, average='binary')
-f1score = f1_score(y_true, y_pred, average='binary')
+# p = precision_score(y_true, y_pred, average='binary')
+# r = recall_score(y_true, y_pred, average='binary')
+# f1score = f1_score(y_true, y_pred, average='binary')
  
-print("train_precision:",p)
-print("train_recall:",r)
-print("train_f1score:",f1score)
+# print("train_precision:",p)
+# print("train_recall:",r)
+# print("train_f1score:",f1score)
+
+from json2data import json2data
+
+def get_packed_data(multi_data_sum, frame_st, frame_end):
+   packed_ft = None
+   packed_multi_data = []
+   interval_frame = (frame_end - frame_st) * 5
+    
+    # The sliding window is 2s, data——>dict
+   for num in range(len_views):
+      multi_data = []
+      for i in range(0, len(multi_data_sum), interval_frame):
+         data2 = multi_data_sum[i + interval_frame * num: i + interval_frame * num + interval_frame]
+         multi_data.append(data2)
+      print(len(multi_data))
+      packed_multi_data.append(multi_data)
+   
 
 
+
+if __name__ == '__main__':
+
+    multi_data_sum, len_pose_file, len_views, len_lbls = json2data()
+    get_packed_data(multi_data_sum, 0, 3)

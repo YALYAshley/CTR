@@ -62,17 +62,6 @@ def gen_feature():
 
     data1, len_pose_file, len_views, len_lbls = json2data()
 
-# The sliding window is 2s, data——>dict
-    for num in range(len_views):
-        multi_data = []
-        for i in range(0, len(data1), len_pose_file):
-            data2 = data1[i + 10 * num: i + 10 * num + (windows * frames)]
-            multi_data.append(data2)
-        multi_data_sum.append(multi_data)
-    # print(multi_data_sum[0])
-    # print(len(multi_data_sum[2]))
-    # print(len(multi_data_sum))
-
     loop_num = int(len_pose_file/(windows * frames))
     for n in range(loop_num):
         f = []
@@ -88,12 +77,29 @@ def gen_feature():
             # print(lbl)
         f_sum.append(f)
         lbl_sum.append(lbl)
+
+    for end_frame_idx in range(packed_len, len_frame_sum, duration):
+        cur_f, cur_lbl = get_packed_data(multi_data_sum, end_frame_idx-packed_len, end_frame_idx)
+        f_sum.append(cur_f)
+        lbl_sum.append(cur_lbl)
     # print("f.size:",len(f))
     # print("lbl.size:",lbl_sum)
     return f_sum, lbl_sum
 
 def get_packed_data(multi_data_sum, frame_st, frame_end):
     packed_ft = None
+    packed_multi_data = []
+    
+    # The sliding window is 2s, data——>dict
+    for num in range(len_views):
+        multi_data = []
+        for i in range(0, len(multi_data_sum), len_pose_file):
+            data2 = multi_data_sum[i + (frame_end - frame_st) * 5 * num: i + (frame_end - frame_st) * 5 * num + (frame_end - frame_st) * 5]
+            multi_data.append(data2)
+        packed_multi_data.append(multi_data)
+    print(multi_data_sum[0])
+    # print(len(multi_data_sum[2]))
+    # print(len(multi_data_sum))
     return packed_ft, lbl
 
 def get_train():
@@ -167,9 +173,9 @@ class MyDataSet(Dataset):
         self.label = y
         self.length =len(data)
         
-    def __getitem__(self, mask):
-        label = self.label[mask]
-        data = self.data[mask]
+    def __getitem__(self, index):
+        label = self.label[index]
+        data = self.data[index]
         return  np.array(data),np.array(label)
 
     def __len__(self):
@@ -331,3 +337,4 @@ if __name__ == '__main__':
     # gen_G(get_train())
     # get_train()
     # FrameWiseHGNN(hids=[1, 36, 16], class_num= 8)
+

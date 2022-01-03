@@ -82,23 +82,51 @@ v9 0   0   1
 from json2data import json2data
 
 def get_packed_data(multi_data_sum, frame_st, frame_end):
-   packed_ft = None
+   # packed_ft = None
    packed_multi_data = []
    interval_frame = (frame_end - frame_st) * 5
-    
-    # The sliding window is 2s, data——>dict
+   _ , len_pose_file, len_views, len_lbls = json2data()
+
    for num in range(len_views):
       multi_data = []
-      for i in range(0, len(multi_data_sum), interval_frame):
-         data2 = multi_data_sum[i + interval_frame * num: i + interval_frame * num + interval_frame]
+      for i in range(0, len(multi_data_sum), len_pose_file):
+         data2 = multi_data_sum[i + 10 * num: i + 10 * num + interval_frame]
          multi_data.append(data2)
-      print(len(multi_data))
       packed_multi_data.append(multi_data)
-   
+   # print(packed_multi_data)
+   # print(len(multi_data_sum[2]))
+   # print(len(packed_multi_data))
 
+   packed_ft = []
+   lbl_sum = []
+   duration = 2
+
+   for n in range(len(packed_multi_data)):
+      f = []
+      lbl = []
+      for i in range(len_lbls * len_views):
+         for j in range(0, interval_frame):
+            f1 = packed_multi_data[n][i][j]['data']
+
+            lbl1 = packed_multi_data[n][i][j]['action']
+         f.append(f1)
+         lbl.append(lbl1)
+      # print(lbl)
+      packed_ft.append(f1)
+      lbl_sum.append(lbl)
+      # print(f_sum)
+
+   f_sum = []
+   for end_frame_idx in range(interval_frame, len(packed_multi_data[0]), duration):
+      cur_f, cur_lbl = get_packed_data(packed_multi_data, end_frame_idx - interval_frame, end_frame_idx)
+      f_sum.append(cur_f)
+      lbl_sum.append(cur_lbl)
+   # print("f.size:",len(f))
+   # print("lbl.size:",lbl_sum)
+   return f_sum, lbl_sum
 
 
 if __name__ == '__main__':
 
     multi_data_sum, len_pose_file, len_views, len_lbls = json2data()
-    get_packed_data(multi_data_sum, 0, 3)
+    get_packed_data(multi_data_sum, 0, 1)

@@ -4,7 +4,7 @@ from HGNN import HGNN_conv
 from HGNN import construct_H_with_KNN, generate_G_from_H, hyperedge_concat
 from json2data import json2data
 
-# __all__ = ['MV_TSHL']
+# __all__ = ['MV_TSHL'] 
 
 import numpy as np
 import torch

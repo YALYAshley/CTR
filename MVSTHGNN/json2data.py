@@ -22,10 +22,9 @@ def json2data(root):
         json_file.write(json_str)
     #lbls = ['changelane','leftturnwait','pullover','slowdown','stop','straight','turnleft','turnright']
     lbls = action_class
-    lbls_trans = [0, 1, 2, 3, 4, 5, 6, 7]
+    lbls_trans = np.array([0, 1, 2, 3, 4, 5, 6, 7])
     views = ['center', 'left', 'right']
     data = []
-
     map = []
     
     
@@ -74,14 +73,15 @@ def json2data(root):
                 all_data1.append(data2)
                 lbl1.append(lbl)
                 if num == len_views:
-                    lbl2 = set(lbl1)
+                    lbl2 = np.unique(lbl1)
                     packed.append(all_data1)
                     num = 0
                     lbl3.append(lbl2)
     packed = tuple(all_data1)
     packed = torch.cat(packed, dim=0)
     packed_data = packed.reshape(-1, 3, 18, 3)
-    packed_lbl = tuple(lbl3)
+    packed_lbl = torch.Tensor(lbl3)
+    packed_lbl = packed_lbl.reshape(-1,1)
 
     return packed_data, packed_lbl
 

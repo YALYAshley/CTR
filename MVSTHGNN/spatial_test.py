@@ -27,7 +27,7 @@ valid_root = '/home/mn/8T/code/new-hgnn/MVSTHGNN/data/valid/json/'
 multi_valid_data, valid_lbls = json2data(valid_root)
 
 def get_packed_data(multi_data_sum, multi_lbls, frame_st, frame_end):
-    # packed_ft = None
+
     packed_multi_data = []
     packed_multi_lbl = []
     interval_frame = 2
@@ -42,97 +42,64 @@ def get_packed_data(multi_data_sum, multi_lbls, frame_st, frame_end):
     return packed_multi_data, packed_multi_lbl
 
 
-# def get_train():
-#
-#     f_sum, lbl_sum = get_packed_data(multi_train_data, train_lbls, 0, 1)
-#     for i in range(len(f_sum)):
-#         for j in range(len(f_sum[0])):
-#         f_sum = tuple(f_sum)
-#         lbl_sum = np.array(lbl_sum)
-#         f_sum = torch.cat(f_sum, dim=0)
-#
-#         X = f_sum.reshape(-1, 18, 3, 3)
-#         label = lbl_sum.reshape(-1, 18, 1)
-#
-#     feature_map = []
-#     for i in range(0, len(X)):
-#         lbl = max(label[i])
-#         dic_map = {'data_X': X[i], 'lbl': lab_dict[str(lbl[0])]}
-#         feature_map.append(dic_map)
-#     # print(len(feature_map))
-#     return feature_map
+def get_feature(data,label):
 
-def get_valid():
-
-    f_sum, lbl_sum = get_packed_data(multi_valid_data, valid_lbls, 0, 1)
-    for i in range(len(f_sum)):
-        for j in range(len(f_sum[0])):  #5
-            for view in range(len(f_sum[0][0])):  #3 views
-                for joint in range(len(f_sum[0][0][0])):   # 18 joints
-                    X = f_sum[i][j][view][joint]
-
-
-            f_sum = tuple(f_sum)
-            lbl_sum = np.array(lbl_sum)
-            f_sum = torch.cat(f_sum, dim=0)
-            # print(f_sum[2])
-            # X = np.array(f_sum[0])
-            X = f_sum.reshape(-1, 18, 3, 3)
-            label = lbl_sum.reshape(-1, 18, 1)
-    # print("get_train_X:",X.shape)
-    # print("get_train_label:",label.shape)
-    feature_map = []
-    lab_dict = {'changelane': [0], 'leftturnwait': [1], 'pullover': [2], 'slowdown': [3], 'stop': [4], 'straight': [5],
-                'turnleft': [6], 'turnright': [7]}
-    for i in range(0, len(X)):
-        lbl = max(label[i])
-        dic_map = {'data_X': X[i], 'lbl': lab_dict[str(lbl[0])]}
-        feature_map.append(dic_map)
-    # print(len(feature_map))
-    return feature_map
-
-def gen_G(X):
-    G = []
-    # X = get_train()
-    # print("len(X):",len(X))
-    # for i in range(len(X)):shape(0)
-    for j in range(0, len(X)):
-        H = X[j]
-        # print("H:",H)
-        g = generate_G_from_H(H)
-        G.append(g)
-    G = torch.stack((G), dim=0)
-    # print("G.size:", G)
-    return G
+    x = []
+    y = []
+    for i in range(len(data)):
+        for j in range(len(data[0])):  # 5
+            f1 = []
+            for joint in range(len(data[0][0][0])):  # 18 joints
+                f = []
+                for view in range(len(data[0][0])):  # 3 views
+                    X = data[i][j][view][joint]
+                    f.append(X)
+                f1.append(f)
+            x.append(f1)
+            lbl1 = label[i][j]
+            y.append(lbl1)
+    return x, y
 
 class MyDataSet(Dataset):
     def __init__(self, flag='train'):
         if flag == 'train':
-            data = get_train()
+            self.data, self.label = get_packed_data(multi_valid_data, valid_lbls, 0, 1)
         else:
-            data = get_valid()
-        x = []
-        y = []
-        for i in range(len(data)):
-            x.append(data[i]['data_X'])
-            y.append(data[i]['lbl'])
-        self.data = x
-        self.label = y
-        self.length = len(data)
+            self.data, self.label = get_packed_data(multi_valid_data, valid_lbls, 0, 1)
+
+        self.length = len(self.data)
 
     def __getitem__(self, index):
-        label = self.label[index]
+
         data = self.data[index]
-        return np.array(data), label
+        label = self.label[index]
+        return data, label
 
     def __len__(self):
         return self.length
 
+def gen_G(X):
+    G = []
+
+    for feature in X:  # iter over each batch
+        for ft in feature:
+            H = None
+            ft = tuple(ft)
+            ft = torch.cat(ft, dim=0)
+            ft = ft.reshape(-1, 3)
+            H_spatial = construct_H_with_KNN(ft, K_neigs=3,
+                                             is_probH=True,
+                                             m_prob=1, mode="global", total_node_num=len(feature), S=3)
+            H = hyperedge_concat(H, H_spatial)
+            g = generate_G_from_H(H)
+        G.append(g)
+    G = torch.stack((G), dim=0)
+    return G
 
 class FrameWiseHGNN(nn.Module):
-    def __init__(self, hids=[8, 16, 1], class_num=8):
+    def __init__(self, hids=[3, 1], class_num=8):
         super(FrameWiseHGNN, self).__init__()
-        self.activation = nn.Softmax(dim=-1)
+        self.activation = nn.Softmax(dim=1)
         # hgnn layers
         self.layers = nn.ModuleList()  # the list of hypergraph layers
         for j in range(1, len(hids)):
@@ -141,32 +108,16 @@ class FrameWiseHGNN(nn.Module):
         print("cls_layer:", self.cls_layer)
 
     def forward(self, x):
-        print("x:", x.shape)
         layers = self.layers
-        G = gen_G(x)
-        print("G:", G.shape)
-        f_in = torch.Tensor(x)
-        # f_in = np.expand_dims(f_in, axis=1)
-        # f_in = torch.Tensor(f_in)
-        print("f_in:", f_in.shape)
+        f_in = gen_G(x)
         for L in layers:
-            f_in = L(f_in, G)  # 进入网络层
-            print("f:", f_in.size())
+            f_in = L(f_in, f_in)  # 进入网络层
         # n x c -> 1 x c
         f_in = f_in.max(1)[0]
-        print("f_in.max(1)", len(f_in))
-        f_in = f_in.reshape((1, 18 * 3))
-        # f_in = torch.from_numpy(f_in)
-        # print("f_in.",f_in)
         # 1 x c -> 1 x 8
         out_feature = self.cls_layer(f_in)
-        # print("out_feature:", out_feature)
-        result = self.activation(out_feature)
-        # result = softmax(out_feature)
-        # print("result:", result)
-        # result_max = result.argmax(dim=1)
-        # print(result_max)
 
+        result = self.activation(out_feature)
         return result
 
 
@@ -182,19 +133,22 @@ def train_it():
     valid_epochs_loss = []
     all_cnt = 0
     net = FrameWiseHGNN()
-    criterion = torch.nn.NLLLoss()
+    criterion = nn.NLLLoss()
     optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate)
     for epoch in range(args.epochs):
         net.train()
         train_epoch_loss = []
         for idx, (data_x, data_y) in enumerate(train_dataloader, 0):
-            # print(data_x)
-            data_x = data_x.to(device)
-            data_y = data_y.to(device)
+            data = data_x.to(torch.float32).to(device)
+            lbl = data_y.to(torch.int32).to(device)
             optimizer.zero_grad()
+
+            data_x, data_y = get_feature(data, lbl)
+            data_y = torch.Tensor(data_y).long()
+
             outputs = net(data_x)
-            train_pred = torch.argmax(outputs)
-            loss = criterion(train_pred, data_y)
+            train_pred = outputs.argmax(dim=1)
+            loss = criterion(outputs, data_y)
             cnt_cor = (train_pred == data_y).sum()
             all_cnt += cnt_cor.item()
             loss.backward()
@@ -239,7 +193,4 @@ def train_it():
 
 
 if __name__ == '__main__':
-    # train_it()
-    # gen_G(get_train())
-    get_valid()
-    # FrameWiseHGNN(hids=[1, 36, 16], class_num= 8)
+    train_it()

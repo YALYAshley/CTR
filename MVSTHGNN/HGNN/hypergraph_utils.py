@@ -193,12 +193,10 @@ def construct_H_with_KNN(X, K_neigs=[10], split_diff_scale=False, is_probH=True,
     """
     if len(X.shape) != 2:
         X = X.reshape(-1, X.shape[-1])
-    print("X",X.shape)
     if type(K_neigs) == int:
         K_neigs = [K_neigs]
 
     dis_mat = Eu_dis(X)
-    print("dis_mat",dis_mat)
     dis_mat_max = dis_mat.max()
     if mode in ['head','trunk','leg']:
         avail_index = body_id_dict[mode]

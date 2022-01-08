@@ -24,7 +24,8 @@ class HGNN_conv(nn.Module):
             self.bias.data.uniform_(-stdv, stdv)
 
     def forward(self, x: torch.Tensor, G: torch.Tensor):
-
+        # old: x(n * c), G (n*n)
+        # new: x(bz * n * c), G(bz * n * n)
         x = torch.Tensor(x)
         x = x.matmul(self.weight.unsqueeze(0))
         if self.bias is not None:

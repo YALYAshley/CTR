@@ -67,8 +67,8 @@ def json2data(root):
         for strat in range(len_pose_file):
             lbl1 = []
             for i in range(strat, len_pose_file * len_views, len_pose_file):
-                data2 = all_data[i + act * 90]['data']
-                lbl = all_data[i + act * 90]['lbl']
+                data2 = all_data[i + act * (len_pose_file * len_views)]['data']
+                lbl = all_data[i + act * (len_pose_file * len_views)]['lbl']
                 num += 1
                 all_data1.append(data2)
                 lbl1.append(lbl)
@@ -80,8 +80,7 @@ def json2data(root):
     packed = tuple(all_data1)
     packed = torch.cat(packed, dim=0)
     packed_data = packed.reshape(-1, 3, 18, 3)
-    packed_lbl = torch.Tensor(lbl3)
-    packed_lbl = packed_lbl.reshape(-1,1)
+    packed_lbl = torch.Tensor(lbl3).reshape(-1,1)
 
     return packed_data, packed_lbl
 

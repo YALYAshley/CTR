@@ -214,3 +214,38 @@ def construct_H_with_KNN(X, K_neigs=[10], split_diff_scale=False, is_probH=True,
         else:
             H.append(H_tmp)
     return H
+
+def __construct_H_with_KNN__(X, K_neigs=[10], split_diff_scale=False, is_probH=True, m_prob=1, mode="global",
+                         total_node_num=18, S=8):
+    """
+    init multi-scale hypergraph Vertex-Edge matrix from original node feature matrix  从原始节点特征矩阵初始化多尺度超图顶点边矩阵
+    :param X: N_object x feature_number
+    :param K_neigs: the number of neighbor expansion
+    :param split_diff_scale: whether split hyperedge group at different neighbor scale
+    :param is_probH: prob Vertex-Edge matrix or binary
+    :param m_prob: prob
+    :return: N_object x N_hyperedge
+    """
+    if len(X.shape) != 2:
+        X = X.reshape(-1, X.shape[-1])
+    if type(K_neigs) == int:
+        K_neigs = [K_neigs]
+
+    dis_mat = Eu_dis(X)
+    dis_mat_max = dis_mat.max()
+    if mode in ['head','trunk','leg']:
+        avail_index = body_id_dict[mode]
+        # iter over the dis_mat, set all of the distance that not allowed to max(dist_mat)
+        for idx in range(dis_mat.shape[0]):
+            for jdx in range(dis_mat.shape[1]):
+                if ((idx % total_node_num) not in avail_index) or ((jdx % total_node_num) not in avail_index):
+                    dis_mat[idx, jdx] = dis_mat_max
+
+    H = []
+    for k_neig in K_neigs:
+        H_tmp = construct_H_with_KNN_from_distance(dis_mat, k_neig, is_probH, m_prob)
+        if not split_diff_scale:
+            H = hyperedge_concat(H, H_tmp)
+        else:
+            H.append(H_tmp)
+    return H

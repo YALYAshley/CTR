@@ -102,16 +102,14 @@ def _generate_G_from_H(H, variable_weight=False, edge_weight=None):
     :return: G
     """
     H = np.array(H)
-    # print("generate_H:",H.shape[1])
     n_edge = H.shape[0]
-    # n_edge = 3
 
     if variable_weight:
         H = torch.Tensor(H)
         if edge_weight.is_cuda and not H.is_cuda:
             H = H.to('cuda')
         # the weight of the hyperedge
-        W = edge_weight
+        W = np.array(edge_weight).reshape(-1,1)
         # the degree of the node
         DV = torch.sum(H * W, 1)
         # the degree of the hyperedge
@@ -146,7 +144,6 @@ def _generate_G_from_H(H, variable_weight=False, edge_weight=None):
         DV2_H = torch.mm(DV2, H)
         invDE_HT_DV2 = torch.mm(torch.mm(invDE, HT), DV2)
         G = torch.mm(torch.mm(DV2_H, W), invDE_HT_DV2)
-        # print("G3:",G)
         return G
 
 

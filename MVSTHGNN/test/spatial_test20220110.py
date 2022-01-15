@@ -108,31 +108,6 @@ class MyDataSet(Dataset):
     def __len__(self):
         return self.length
 
-# def gen_batch_G(X):
-#     """
-#     H_st: ndarray:(n_frame * 3_view * 18joints,18)
-#     Args:
-#         X: bz, [n_frame, 3_view, 18joints], 3
-#
-#     Returns:
-#         batch_G: bz * n * n
-#     """
-#     batch_G = []
-#     for _idx in range(X.size(0)):
-#         H = None
-#         cur_x =X[_idx]
-#         # gen G: n * n
-#         H_st = construct_st_H(cur_x)
-#         H = hyperedge_concat(H, H_st)
-#         H_spatial = construct_spatial_H(cur_x)
-#         H = hyperedge_concat(H, H_spatial)
-#         H_temporal = construct_temporal_H(cur_x)
-#         H = hyperedge_concat(H, H_temporal)
-#         g = generate_G_from_H(H)
-#         batch_G.append(g)
-#     batch_G = torch.stack(batch_G)
-#     return batch_G # bz * n * n
-
 class FrameWiseHGNN(nn.Module):
     def __init__(self, hids=[3, 32, 128, 512, 128], class_num=8):
         super(FrameWiseHGNN, self).__init__()

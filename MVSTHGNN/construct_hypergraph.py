@@ -18,7 +18,7 @@ def construct_st_H(data):
     n_frame = int(len(data)/(views * joints))
     n_obj = views * joints * n_frame
     n_edge = joints
-    H = np.ones((len(data), n_edge * n_frame)) * 0.1
+    H = np.ones((len(data), n_edge * n_frame)) * 0.0001
     for edg_idx in range(n_edge):
         for node_idx in range(edg_idx, len(data), joints):
             H[node_idx, edg_idx] = 1.0
@@ -39,11 +39,11 @@ def construct_spatial_H(data):
     n_frame = int(len(data)/(views * joints))
     n_obj = views * joints
     n_edge = joints
-    H = np.ones((n_obj, n_edge)) * 0.1
+    H = np.zeros((n_obj, n_edge))
     for edg_idx in range(n_edge):
         for node_idx in range(edg_idx, n_obj, joints):
             H[node_idx, edg_idx] = 1.0
-    gen_H = scipy.linalg.block_diag(H,H,H,H,H,H,H,H,H,H)
+    gen_H = scipy.linalg.block_diag(H,H,H,H,H)
     return gen_H
 
 def construct_temporal_H(data):
@@ -61,7 +61,7 @@ def construct_temporal_H(data):
     n_frame = int(len(data)/(views * joints))
     n_obj = len(data)
     n_edge = joints
-    H = np.ones((n_obj, n_edge * n_frame)) * 0.1
+    H = np.ones((n_obj, n_edge * n_frame)) * 0.0001
     for edg_idx in range(n_edge * views):
         for node_idx in range(edg_idx, len(data), joints * views):
             H[node_idx, edg_idx] = 1.0

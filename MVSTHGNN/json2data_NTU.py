@@ -22,7 +22,8 @@ def json2data(root):
         json_file.write(json_str)
     #lbls = ['changelane','leftturnwait','pullover','slowdown','stop','straight','turnleft','turnright']
     lbls = action_class
-    views = ['center', 'left', 'right']
+
+    views = ['C001', 'C002', 'C003']
     map = []
 
     for lbl in lbls:
@@ -85,32 +86,6 @@ def json2data(root):
     return packed_data, packed_lbl
 
 
-def get_packed_data(multi_data_sum, multi_lbls, frame_st, frame_end):
-    """
-
-    Args:
-        multi_data_sum:  all, 3_view, 18_joints, xyp--> all,  3, 18, 3
-        multi_lbls:  all, 1
-        frame_st:
-        frame_end:
-
-    Returns:
-        packed_multi_data:  10((frame_end - frame_st) * 5), 3_view, 18_joints, 3(xyp)
-        packed_multi_lbl:
-    """
-
-    packed_multi_data = []
-    packed_multi_lbl = []
-    interval_frame = 2
-    duration = (frame_end - frame_st) * 5
-
-    for i in range(0, len(multi_data_sum), interval_frame):
-        data2 = multi_data_sum[i : i + duration]
-        lbl = multi_lbls[i]
-        packed_multi_data.append(data2)
-        packed_multi_lbl.append(lbl)
-
-    return packed_multi_data, packed_multi_lbl
 
 # if __name__ == '__main__':
 #     root = '/home/mn/8T/code/new-hgnn/MVSTHGNN/data/train/json/'

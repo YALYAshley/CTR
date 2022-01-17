@@ -3,9 +3,10 @@ from __future__ import division
 import sys
 import os.path as osp
 import time
+import random
 from HGNN import HGNN_conv
 from HGNN import generate_G_from_H, hyperedge_concat
-from json2data import json2data
+from json2data import json2data, get_packed_data
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import precision_score, recall_score,f1_score, confusion_matrix
 import matplotlib.pyplot as plt
@@ -34,38 +35,11 @@ multi_data, multi_lbl = json2data(root)
 import warnings
 warnings.filterwarnings("ignore")
 
-def get_packed_data(multi_data_sum, multi_lbls, frame_st, frame_end):
-    """
-
-    Args:
-        multi_data_sum:  all, 3_view, 18_joints, xyp--> all,  3, 18, 3
-        multi_lbls:  all, 1
-        frame_st:
-        frame_end:
-
-    Returns:
-        packed_multi_data:  10((frame_end - frame_st) * 5), 3_view, 18_joints, 3(xyp)
-        packed_multi_lbl:
-    """
-
-    packed_multi_data = []
-    packed_multi_lbl = []
-    interval_frame = 2
-    duration = (frame_end - frame_st) * 5
-
-    for i in range(0, len(multi_data_sum), interval_frame):
-        data2 = multi_data_sum[i : i + duration]
-        lbl = multi_lbls[i]
-        packed_multi_data.append(data2)
-        packed_multi_lbl.append(lbl)
-
-    return packed_multi_data, packed_multi_lbl
-
 class MyDataSet(Dataset):
-    def __init__(self, flag='train'):
+    def __init__(self, flag='train',mode='st'):
 
         frame_st = 0
-        frame_end = 1
+        frame_end = 8
         duration = (frame_end - frame_st) * 5
         self.data, self.label = get_packed_data(multi_data, multi_lbl, frame_st, frame_end)
         for i in range(duration):
@@ -82,23 +56,31 @@ class MyDataSet(Dataset):
         self.length = len(self.data)
 
         # construct G
-
         H = None
-        l = (len(self.data[0]) * len(self.data[0][0]) * len(self.data[0][0][0]))
-        H = np.zeros((l, 180))
         cur_x = self.data[0]
         cur_x = cur_x.view(-1, 3)
-        # gen G: n * n
-        H_st = construct_st_H(cur_x)
-        H = hyperedge_concat(H, H_st)
-        # H_spatial = construct_spatial_H(cur_x)
-        # H = hyperedge_concat(H, H_spatial)
-        # H_temporal = construct_temporal_H(cur_x)
-        # H = hyperedge_concat(H, H_temporal)
+        if mode == 'st':
+            # gen G: n * n
+            H_st = construct_st_H(cur_x)
+            H = hyperedge_concat(H, H_st)
+        elif mode == 'temporal':
+            # gen G: n * n
+            H_temporal = construct_temporal_H(cur_x)
+            H = hyperedge_concat(H, H_temporal)
+        elif mode == 'spatial':
+            # gen G: n * n
+            H_spatial = construct_spatial_H(cur_x)
+            H = hyperedge_concat(H, H_spatial)
+        else:
+            H_st = construct_st_H(cur_x)
+            H = hyperedge_concat(H, H_st)
+            H_temporal = construct_temporal_H(cur_x)
+            H = hyperedge_concat(H, H_temporal)
+            H_spatial = construct_spatial_H(cur_x)
+            H = hyperedge_concat(H, H_spatial)
         self.G = generate_G_from_H(H)
         # self.G = 0
         # end G
-
 
     def __getitem__(self, index):
 
@@ -106,7 +88,6 @@ class MyDataSet(Dataset):
         label = self.label[index]
         # n_frame * 3_view * 18 * xyp ---->> n * c
         data = data.view(-1, 3)
-        # data = data - data.min(0)[0]
         data = (data - data.min(0)[0])/(data.max(0)[0] - data.min(0)[0])
 
         return data, label, self.G
@@ -140,6 +121,9 @@ class FrameWiseHGNN(nn.Module):
         result = out_feature
         return result
 
+def count_params(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
 # 显示混淆矩阵
 def plot_confuse_data(truelabel, predictions):
     classes = range(0,8)
@@ -157,15 +141,11 @@ def plot_confuse_data(truelabel, predictions):
     plt.ylabel('True label')
     plt.title('Confusion matrix')
 
-# # 显示数据
-#     for first_index in range(len(confusion)):    #第几行
-#         for second_index in range(len(confusion[first_index])):    #第几列
-#             plt.text(first_index, second_index, confusion[first_index][second_index])
 
 def train_it():
-    train_dataset = MyDataSet(flag='train')
+    train_dataset = MyDataSet(flag='train', mode = 'st')
     train_dataloader = DataLoader(dataset=train_dataset, batch_size=64, shuffle=True)
-    valid_dataset = MyDataSet(flag='valid')
+    valid_dataset = MyDataSet(flag='valid', mode = 'st')
     valid_dataloader = DataLoader(dataset=valid_dataset, batch_size=64, shuffle=True)
 
     sys.stdout = Logger(osp.join('/home/mn/8T/code/new-hgnn/MVSTHGNN/log/police_log/', 'log_{}.txt'.format(time.strftime('-%Y-%m-%d-%H-%M-%S'))))
@@ -175,9 +155,9 @@ def train_it():
     best_acc = 0
     best_acc_epoch = 0
 
-    net = FrameWiseHGNN()
+    net = FrameWiseHGNN().to(args.device)
 
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss().to(args.device)
     optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate)
     for epoch in range(args.epochs):
         net.train()
@@ -185,8 +165,8 @@ def train_it():
         train_pred_list = []
         lbl_list = []
         for idx, (data_x, data_y, G) in enumerate(train_dataloader, 0):
-            data = data_x.to(torch.float32).to(device)
-            lbl = data_y.long().to(device)   #torch.int64
+            data = data_x.to(torch.float32).to(args.device)
+            lbl = data_y.long().to(args.device)   #torch.int64
             lbl = lbl.view(lbl.size(0))
 
             G = train_dataloader.dataset.G
@@ -217,9 +197,9 @@ def train_it():
         rec_score = recall_score(lbl_result, train_pred_result, average = 'weighted')
         f_score = f1_score(lbl_result, train_pred_result, average='weighted')
 
+        print(f'Model total number of params: {count_params(net)}')
         print(f'epoch={epoch}/{args.epochs}, loss = {loss.item():.4f}, training: acc {acc * 100:.3f}%, '
               f'precision {pre_score * 100:.3f}%, recall {rec_score:.5f}, f1 {f_score:.5f}')
-
 
         train_epochs_loss.append(np.average(train_epoch_loss))
 
@@ -229,8 +209,8 @@ def train_it():
         lbl_valid_list = []
         with torch.no_grad():
             for idx, (data_x, data_y, G) in enumerate(valid_dataloader, 0):
-                data_valid = data_x.to(torch.float32).to(device)
-                lbl_valid = data_y.long().to(device)  # torch.int64
+                data_valid = data_x.to(torch.float32).to(args.device)
+                lbl_valid = data_y.long().to(args.device)  # torch.int64
                 lbl_valid = lbl_valid.view(lbl_valid.size(0))
 
                 # compute output
@@ -249,9 +229,9 @@ def train_it():
         pre_valid_score = precision_score(lbl_valid_result, valid_pred_result, average='weighted')
         rec_valid_score = recall_score(lbl_valid_result, valid_pred_result, average='weighted')
         f_valid_score = f1_score(lbl_valid_result, valid_pred_result, average='weighted')
-        plot_confuse_data(lbl_valid_result, valid_pred_result)
-        plt.savefig('confusion_matrix' + str(epoch) + '.jpg')
-        plt.show()
+        # plot_confuse_data(lbl_valid_result, valid_pred_result)
+        # plt.savefig('confusion_matrix' + str(epoch) + '.jpg')
+        # plt.show()
 
 
         if valid_acc > best_acc:

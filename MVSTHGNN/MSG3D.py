@@ -4,9 +4,7 @@ from __future__ import division
 import sys
 import os.path as osp
 import time
-from HGNN import HGNN_conv
-from HGNN import generate_G_from_H, hyperedge_concat
-from json2data import json2data, get_packed_data
+from stateofartdata import json2data, get_packed_data
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import precision_score, recall_score,f1_score, confusion_matrix
 import matplotlib.pyplot as plt
@@ -16,15 +14,17 @@ import numpy as np
 import torch
 from torch import nn
 from MSG3Dmodel.msg3d import Model
+from MSG3Dmodel.feeder_tools import random_shift, random_choose, auto_pading, random_move
 from torch.utils.data import DataLoader, Dataset
 
 class argparse():
     pass
 
+device = "cpu"
 
 args = argparse()
-args.epochs, args.learning_rate, args.patience = [100, 0.005, 4]
-args.device, = [torch.device("cuda:0" if torch.cuda.is_available() else "cpu"), ]
+args.epochs, args.learning_rate, args.patience = [100, 0.05, 4]
+args.device, = [torch.device("cuda:1" if torch.cuda.is_available() else "cpu"), ]
 root = '/home/mn/8T/code/new-hgnn/MVSTHGNN/data/data/'
 multi_data, multi_lbl = json2data(root)
 import warnings
@@ -33,21 +33,8 @@ warnings.filterwarnings("ignore")
 class MyDataSet(Dataset):
     def __init__(self, flag='train'):
 
-        self.window_size = -1
-        frame_st = 0
-        frame_end = 5
-        duration = (frame_end - frame_st) * 5
-        self.data, self.label = get_packed_data(multi_data, multi_lbl, frame_st, frame_end)
-        for i in range(duration):
-            self.data.pop()
-            self.label.pop()
-        # S = len(self.data)
-        # T, V, N, M = self.data[0].shape
-        # self.data = torch.stack(self.data, dim = 0)
-        # self.data = self.data.view(S, T, V, N, M).permute(0, 2, 1, 3, 4).contiguous()
-        # if self.window_size > 0:
-        #     self.data = auto_pading(self.data, self.window_size)
-
+        self.data, self.label = get_packed_data(multi_data, multi_lbl, 0, 8)
+        # self.data, self.label = multi_data, multi_lbl
         train_data, valid_data, train_lbl, valid_lbl = train_test_split(self.data, self.label, test_size=0.2, random_state=42)
 
         if flag == 'train':
@@ -63,7 +50,7 @@ class MyDataSet(Dataset):
 
         data = self.data[index]
         label = self.label[index]
-
+        data = auto_pading(data, 300)
         return data, label
 
     def __len__(self):
@@ -71,9 +58,9 @@ class MyDataSet(Dataset):
 
 def train_it():
     train_dataset = MyDataSet(flag='train')
-    train_dataloader = DataLoader(dataset=train_dataset, batch_size=64, shuffle=True)
+    train_dataloader = DataLoader(dataset=train_dataset, batch_size=8, shuffle=True)
     valid_dataset = MyDataSet(flag='valid')
-    valid_dataloader = DataLoader(dataset=valid_dataset, batch_size=64, shuffle=True)
+    valid_dataloader = DataLoader(dataset=valid_dataset, batch_size=8, shuffle=True)
 
     sys.stdout = Logger(osp.join('/home/mn/8T/code/new-hgnn/MVSTHGNN/log/police_MSG3Dlog/', 'log_{}.txt'.format(time.strftime('-%Y-%m-%d-%H-%M-%S'))))
 
@@ -83,15 +70,15 @@ def train_it():
     best_acc_epoch = 0
 
     net = Model(
-        num_class=8,
+        num_class=9,
         num_point=18,
         num_person=3,
         num_gcn_scales=18,
         num_g3d_scales=3,
-        in_channels=3,
-        graph='MSG3Dmodel.police.AdjMatrixGraph')
+        in_channels=2,
+        graph='MSG3Dmodel.police.AdjMatrixGraph').to(args.device)
 
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss().to(args.device)
     optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate)
     for epoch in range(args.epochs):
         net.train()
@@ -134,7 +121,7 @@ def train_it():
         train_epochs_loss.append(np.average(train_epoch_loss))
 
         # =====================valid============================
-        net.eval()
+        net.eval().to(args.device)
         valid_pred_list = []
         lbl_valid_list = []
         with torch.no_grad():
@@ -157,8 +144,6 @@ def train_it():
         rec_valid_score = recall_score(lbl_valid_result, valid_pred_result, average='weighted')
         f_valid_score = f1_score(lbl_valid_result, valid_pred_result, average='weighted')
 
-
-
         if valid_acc > best_acc:
             best_acc = valid_acc
             best_acc_epoch = epoch + 1
@@ -167,18 +152,6 @@ def train_it():
               f"precision {pre_valid_score * 100:.3f}%, recall {rec_valid_score:.5f}, f1 {f_valid_score:.5f}")
         print(f"Best accuracy: {best_acc * 100:.3f}%, Epoch number: {best_acc_epoch}")
     plt.clf()
-
-        # # ====================adjust lr========================
-        # lr_adjust = {
-        #     2: 5e-5, 4: 1e-5, 6: 5e-6, 8: 1e-6,
-        #     10: 5e-7, 15: 1e-7, 20: 5e-8
-        # }
-        #
-        # if epoch in lr_adjust.keys():
-        #     lr = lr_adjust[epoch]
-        #     for param_group in optimizer.param_groups:
-        #         param_group['lr'] = lr
-        #     print('Updating learning rate to {}'.format(lr))
 
 
 

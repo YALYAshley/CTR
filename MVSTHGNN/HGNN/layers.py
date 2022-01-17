@@ -32,7 +32,7 @@ class HGNN_conv(nn.Module):
             x = x + self.bias.unsqueeze(0)
         if x.is_cuda and (not G.is_cuda):
             G = G.to('cuda')
-        # x = G.matmul(x)
+        x = G.matmul(x)
         return x
 
 class HGNN_fc(nn.Module):

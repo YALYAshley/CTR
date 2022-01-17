@@ -4,27 +4,25 @@ from __future__ import division
 import sys
 import os.path as osp
 import time
-from stateofartdata import json2data, get_packed_data
+from json2data import json2data, get_packed_data
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import precision_score, recall_score,f1_score, confusion_matrix
 import matplotlib.pyplot as plt
+from MSG3Dmodel.feeder_tools import random_shift, random_choose, auto_pading, random_move
 
 from torchreid.utils.logger import Logger
 import numpy as np
 import torch
 from torch import nn
-from CTRGCNmodel.ctrgcn import Model
-from MSG3Dmodel.feeder_tools import random_shift, random_choose, auto_pading
+from AGCNmodel.aagcn import Model
 from torch.utils.data import DataLoader, Dataset
 
 class argparse():
     pass
 
-
 args = argparse()
-args.epochs, args.learning_rate, args.patience = [100, 0.1, 4]
-args.device = torch.device("cuda:1")
-# args.device, = [torch.device("cuda:1" if torch.cuda.is_available() else "cpu"), ]
+args.epochs, args.learning_rate, args.patience = [100, 0.0005, 4]
+args.device, = [torch.device("cuda:1" if torch.cuda.is_available() else "cpu"), ]
 root = '/home/mn/8T/code/new-hgnn/MVSTHGNN/data/data/'
 multi_data, multi_lbl = json2data(root)
 import warnings
@@ -33,16 +31,10 @@ warnings.filterwarnings("ignore")
 class MyDataSet(Dataset):
     def __init__(self, flag='train'):
 
-        frame_st = 0
-        frame_end = 8
-        duration = (frame_end - frame_st) * 5
-        self.data, self.label = get_packed_data(multi_data, multi_lbl, frame_st, frame_end)
-        for i in range(duration):
-            self.data.pop()
-            self.label.pop()
+        self.data, self.label = get_packed_data(multi_data, multi_lbl, 0, 8)
+        # self.data, self.label = multi_data, multi_lbl
         train_data, valid_data, train_lbl, valid_lbl = train_test_split(self.data, self.label, test_size=0.2,
                                                                         random_state=42)
-
         if flag == 'train':
             self.data = train_data
             self.label = train_lbl
@@ -56,7 +48,7 @@ class MyDataSet(Dataset):
 
         data = self.data[index]
         label = self.label[index]
-        # data = auto_pading(data, 300)
+        data = auto_pading(data, 300)
         return data, label
 
     def __len__(self):
@@ -64,11 +56,11 @@ class MyDataSet(Dataset):
 
 def train_it():
     train_dataset = MyDataSet(flag='train')
-    train_dataloader = DataLoader(dataset=train_dataset, batch_size=64, shuffle=True)
+    train_dataloader = DataLoader(dataset=train_dataset, batch_size=8, shuffle=True)
     valid_dataset = MyDataSet(flag='valid')
-    valid_dataloader = DataLoader(dataset=valid_dataset, batch_size=64, shuffle=True)
+    valid_dataloader = DataLoader(dataset=valid_dataset, batch_size=8, shuffle=True)
 
-    sys.stdout = Logger(osp.join('/home/mn/8T/code/new-hgnn/MVSTHGNN/log/police_CTRlog/', 'log_{}.txt'.format(time.strftime('-%Y-%m-%d-%H-%M-%S'))))
+    sys.stdout = Logger(osp.join('/home/mn/8T/code/new-hgnn/MVSTHGNN/log/police_ASGCNlog/', 'log_{}.txt'.format(time.strftime('-%Y-%m-%d-%H-%M-%S'))))
 
     train_loss = []
     train_epochs_loss = []
@@ -76,14 +68,15 @@ def train_it():
     best_acc_epoch = 0
 
     net = Model(
-        num_class=9,
+        num_class=8,
         num_point=18,
-        num_person=2,
+        num_person=3,
         graph_args=dict(),
         drop_out=0,
         adaptive=True,
         in_channels=3,
-        graph='CTRGCNmodel.police.Graph').to(args.device)
+        graph='AGCNmodel.police.Graph').to(args.device)
+
 
     criterion = nn.CrossEntropyLoss().to(args.device)
     optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate)
@@ -150,6 +143,8 @@ def train_it():
         pre_valid_score = precision_score(lbl_valid_result, valid_pred_result, average='weighted')
         rec_valid_score = recall_score(lbl_valid_result, valid_pred_result, average='weighted')
         f_valid_score = f1_score(lbl_valid_result, valid_pred_result, average='weighted')
+
+
 
         if valid_acc > best_acc:
             best_acc = valid_acc

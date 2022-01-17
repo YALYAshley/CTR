@@ -151,7 +151,7 @@ class Model(nn.Module):
         self.fc = nn.Linear(c3, num_class)
 
     def forward(self, x):
-        x = x.permute(0, 2, 1, 3, 4)
+        # x = x.permute(0, 2, 1, 3, 4)
         N, C, T, V, M = x.size()  #N  sample, C  3_views, T frames, V  joints, M  xy
         x = x.permute(0, 4, 3, 1, 2).contiguous().view(N, M * V * C, T)  #(64,162,5)
         x = self.data_bn(x)

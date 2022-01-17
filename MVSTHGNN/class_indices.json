@@ -1,10 +1,11 @@
 {
     "0": "changelane",
     "1": "leftturnwait",
-    "2": "pullover",
-    "3": "slowdown",
-    "4": "stop",
-    "5": "straight",
-    "6": "turnleft",
-    "7": "turnright"
+    "2": "others",
+    "3": "pullover",
+    "4": "slowdown",
+    "5": "stop",
+    "6": "straight",
+    "7": "turnleft",
+    "8": "turnright"
 }

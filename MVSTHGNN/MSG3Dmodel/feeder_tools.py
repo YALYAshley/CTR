@@ -30,6 +30,7 @@ def mean_subtractor(data_numpy, mean):
 
 
 def auto_pading(data_numpy, size, random_pad=False):
+    data_numpy = data_numpy.permute(1, 0, 2, 3)
     C, T, V, M = data_numpy.shape
     if T < size:
         begin = random.randint(0, size - T) if random_pad else 0

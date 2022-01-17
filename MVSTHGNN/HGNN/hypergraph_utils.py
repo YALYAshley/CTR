@@ -102,7 +102,7 @@ def _generate_G_from_H(H, variable_weight=False, edge_weight=None):
     :return: G
     """
     H = np.array(H)
-    n_edge = H.shape[0]
+    n_edge = H.shape[1]
 
     if variable_weight:
         H = torch.Tensor(H)

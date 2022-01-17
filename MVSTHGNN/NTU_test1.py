@@ -30,7 +30,7 @@ class argparse():
 
 args = argparse()
 args.epochs, args.learning_rate, args.patience = [100, 0.005, 4]
-args.device, = [torch.device("cuda:0" if torch.cuda.is_available() else "cpu"), ]
+args.device, = [torch.device("cuda:1" if torch.cuda.is_available() else "cpu"), ]
 root = '/home/mn/8T/code/new-hgnn/MVSTHGNN/data/NTU-RGB+D/'
 multi_data, multi_lbl = json2data(root)
 import warnings
@@ -145,9 +145,9 @@ def plot_confuse_data(truelabel, predictions):
 
 
 def train_it():
-    train_dataset = MyDataSet(flag='train', mode = 'st')
+    train_dataset = MyDataSet(flag='train', mode = 'temporal')
     train_dataloader = DataLoader(dataset=train_dataset, batch_size=64, shuffle=True)
-    valid_dataset = MyDataSet(flag='valid', mode = 'st')
+    valid_dataset = MyDataSet(flag='valid', mode = 'temporal')
     valid_dataloader = DataLoader(dataset=valid_dataset, batch_size=64, shuffle=True)
 
     sys.stdout = Logger(osp.join('/home/mn/8T/code/new-hgnn/MVSTHGNN/log/NTU_log/', 'log_{}.txt'.format(time.strftime('-%Y-%m-%d-%H-%M-%S'))))

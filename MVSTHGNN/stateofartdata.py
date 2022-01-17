@@ -22,8 +22,7 @@ def json2data(root):
         json_file.write(json_str)
     #lbls = ['changelane','leftturnwait','pullover','slowdown','stop','straight','turnleft','turnright']
     lbls = action_class
-
-    views = ['C001', 'C002', 'C003']
+    views = ['center', 'left', 'right']
     map = []
 
     for lbl in lbls:
@@ -40,8 +39,10 @@ def json2data(root):
                     for j in range(0,18):
                         coor_x = np.array(poses[poses_key]['bodies'][0]['joints'][3*j])
                         coor_y = np.array(poses[poses_key]['bodies'][0]['joints'][1+3*j])
+                        # coor_prob = np.array(poses[poses_key]['bodies'][0]['joints'][2+3*j])
                         data1.append(float(coor_x))
                         data1.append(float(coor_y))
+                        # data1.append(float(coor_prob))
                     data = torch.tensor(data1)
                     data = data.view(-1,18,2)
                     data_map = {'lbl': class_indices[lbl], 'view': view, 'data_file': pose_file[length],'data': data, 'key_map': body_id}
@@ -66,6 +67,11 @@ def json2data(root):
                 num += 1
                 all_data1.append(data2)
                 lbl1.append(lbl)
+                # lbl_trans = torch.tensor(lbl1).view(-1,1)
+                # for i in range(len(lbl_trans)):
+                #     if lbl != lbl_trans[i]:
+                #         all_data1.pop()
+                #         lbl1.pop()
                 if num == len_views:
                     lbl2 = np.unique(lbl1)
                     packed.append(all_data1)
@@ -78,7 +84,8 @@ def json2data(root):
 
     return packed_data, packed_lbl
 
-def get_packed_data(multi_data_sum, multi_lbls, frame_st, frame_end):
+
+def get_packed_data(multi_data_sum, multi_lbls, frame_st = 0, frame_end = 5):
     """
 
     Args:
@@ -94,8 +101,9 @@ def get_packed_data(multi_data_sum, multi_lbls, frame_st, frame_end):
 
     packed_multi_data = []
     packed_multi_lbl = []
-    interval_frame = 2
+
     duration = (frame_end - frame_st) * 5
+    interval_frame = duration
 
     for i in range(0, len(multi_data_sum), interval_frame):
         data2 = multi_data_sum[i : i + duration]
